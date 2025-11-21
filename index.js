@@ -51,12 +51,28 @@ async function processN8nWebhook(webhookPayload, conversationId, customerEmail, 
             throw new Error(`n8n webhook error: ${n8nResponse.status} - ${await n8nResponse.text()}`);
         }
 
-        let aiRecommendations = await n8nResponse.json();
+        // Get the response text first to debug issues
+        const responseText = await n8nResponse.text();
+        console.log(`Background: n8n response text (first 500 chars): ${responseText.substring(0, 500)}`);
+
+        // Check if response is empty
+        if (!responseText || responseText.trim() === '') {
+            throw new Error('n8n webhook returned empty response');
+        }
+
+        // Try to parse JSON
+        let aiRecommendations;
+        try {
+            aiRecommendations = JSON.parse(responseText);
+        } catch (parseError) {
+            throw new Error(`n8n webhook returned invalid JSON: ${parseError.message}. Response: ${responseText.substring(0, 200)}`);
+        }
         console.log(`Background: Received AI recommendations for conversation ${conversationId}`);
 
         // Transform n8n response to expected format
         // n8n returns array with content blocks, we need to extract text and format as recommended_replies
-        if (Array.isArray(aiRecommendations) && aiRecommendations[0]?.content) {
+        if (Array.isArray(aiRecommendations)) {
+            console.log(`Background: Transforming Claude API response format...`);
             // Extract text from content blocks
             const replies = [];
             aiRecommendations.forEach((item, index) => {
@@ -75,14 +91,19 @@ async function processN8nWebhook(webhookPayload, conversationId, customerEmail, 
             });
 
             // Format as expected structure
-            aiRecommendations = {
-                recommended_replies: replies,
-                context_analysis: {
-                    sentiment: 'positive',
-                    urgency: 'medium',
-                    category: 'support'
-                }
-            };
+            if (replies.length > 0) {
+                aiRecommendations = {
+                    recommended_replies: replies,
+                    context_analysis: {
+                        sentiment: 'positive',
+                        urgency: 'medium',
+                        category: 'support'
+                    }
+                };
+                console.log(`Background: Transformed ${replies.length} replies`);
+            } else {
+                console.log(`Background: No text content found in response`);
+            }
         }
 
         // Store in cache with 5 minute expiry
