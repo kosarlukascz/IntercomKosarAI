@@ -463,7 +463,7 @@ function buildRecommendedRepliesCanvas(aiRecommendations, customerEmail, message
             const confidence = reply.confidence ? Math.round(reply.confidence * 100) : 0;
             components.push({
                 type: "text",
-                text: `**Option ${index + 1}** ${confidence > 0 ? `(${confidence}% confidence)` : ''}`
+                text: `*Option ${index + 1}* ${confidence > 0 ? `(${confidence}% confidence)` : ''}`
             });
 
             // Reply text in textarea for editing
@@ -476,7 +476,7 @@ function buildRecommendedRepliesCanvas(aiRecommendations, customerEmail, message
             });
 
             // Use button
-            components.push({
+           /* components.push({
                 type: "button",
                 id: `use_reply_${reply.id || index}`,
                 label: "📋 Copy This Reply",
@@ -485,7 +485,7 @@ function buildRecommendedRepliesCanvas(aiRecommendations, customerEmail, message
                     type: "submit"
                 }
             });
-
+*/
             // Add spacer between replies
             if (index < aiRecommendations.recommended_replies.length - 1) {
                 components.push({
@@ -510,20 +510,20 @@ function buildRecommendedRepliesCanvas(aiRecommendations, customerEmail, message
 
             components.push({
                 type: "text",
-                text: "**Context Analysis**"
+                text: "*Context Analysis*"
             });
 
             const analysis = aiRecommendations.context_analysis;
             let analysisText = '';
 
             if (analysis.sentiment) {
-                analysisText += `- **Sentiment:** ${analysis.sentiment}\n`;
+                analysisText += `- *Sentiment:* ${analysis.sentiment}\n`;
             }
             if (analysis.urgency) {
-                analysisText += `- **Urgency:** ${analysis.urgency}\n`;
+                analysisText += `- *Urgency:* ${analysis.urgency}\n`;
             }
             if (analysis.category) {
-                analysisText += `- **Category:** ${analysis.category}\n`;
+                analysisText += `- *Category:* ${analysis.category}\n`;
             }
 
             if (analysisText) {
