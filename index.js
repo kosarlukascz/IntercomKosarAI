@@ -72,13 +72,32 @@ async function processN8nWebhook(webhookPayload, conversationId, customerEmail, 
         try {
             aiRecommendations = JSON.parse(responseText);
         } catch (parseError) {
-            throw new Error(`KosyAI webhook returned invalid JSON: ${parseError.message}. Response: ${responseText.substring(0, 200)}`);
+            // If not valid JSON, treat the entire response as a plain text reply
+            console.log(`Background: Response is plain text, not JSON. Treating as single reply.`);
+            aiRecommendations = responseText;
         }
         console.log(`Background: Received AI recommendations for conversation ${conversationId}`);
 
         // Transform KosyAI response to expected format
+        // Handle plain text response (wrap it as a single reply)
+        if (typeof aiRecommendations === 'string') {
+            console.log(`Background: Converting plain text response to reply format...`);
+            aiRecommendations = {
+                recommended_replies: [{
+                    id: 'reply-0',
+                    text: aiRecommendations,
+                    confidence: 0.95,
+                    tone: 'professional'
+                }],
+                context_analysis: {
+                    sentiment: 'positive',
+                    urgency: 'medium',
+                    category: 'support'
+                }
+            };
+        }
         // KosyAI returns array with content blocks, we need to extract text and format as recommended_replies
-        if (Array.isArray(aiRecommendations)) {
+        else if (Array.isArray(aiRecommendations)) {
             console.log(`Background: Transforming Claude API response format...`);
             // Extract text from content blocks
             const replies = [];
