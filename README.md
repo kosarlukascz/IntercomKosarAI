@@ -1,6 +1,6 @@
-# Intercom Canvas Integration
+# Intercom Canvas Integration - AI Reply Assistant
 
-Express.js server pro integraci s Intercom Canvas API. Umožňuje zobrazovat detailní informace přímo v Intercom rozhraní.
+Express.js server pro integraci s Intercom Canvas API. Načítá konverzace z Intercomu, posílá je na n8n webhook pro AI zpracování a zobrazuje doporučené odpovědi přímo v Intercom sidebaru.
 
 ## Technologie
 
@@ -38,9 +38,23 @@ cp .env.example .env
 4. Nakonfigurujte environment proměnné v `.env` souboru:
 ```env
 PORT=3000
+
+# Intercom konfigurace
+INTERCOM_ACCESS_TOKEN=dG9rOjxxxxxxxxx
+INTERCOM_CLIENT_SECRET=xxxxxxxxxxxxxxx
+
+# n8n webhook
+N8N_WEBHOOK_URL=https://your-n8n-instance.com/webhook/intercom-ai
+
+# Volitelné - vlastní API
 API_BASE_URL=https://your-api-endpoint.com
 API_TOKEN=your-api-token-here
 ```
+
+**Kde získat tokeny:**
+- **INTERCOM_ACCESS_TOKEN**: Intercom Developer Hub > Your App > Authentication > Access Token
+- **INTERCOM_CLIENT_SECRET**: Intercom Developer Hub > Your App > Basic Information > Client Secret
+- **N8N_WEBHOOK_URL**: n8n workflow webhook URL (s basic auth pokud je vyžadováno)
 
 ## Spuštění
 
