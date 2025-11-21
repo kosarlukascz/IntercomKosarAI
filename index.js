@@ -22,7 +22,7 @@ const aiCache = new Map();
 // Background processing function for n8n webhook
 async function processN8nWebhook(webhookPayload, conversationId, customerEmail, messageCount) {
     try {
-        console.log(`Background: Processing n8n webhook for conversation ${conversationId}...`);
+        console.log(`Background: Processing KosyAI webhook for conversation ${conversationId}...`);
 
         // Parse n8n webhook URL to extract credentials
         const n8nUrl = new URL(N8N_WEBHOOK_URL);
@@ -42,29 +42,29 @@ async function processN8nWebhook(webhookPayload, conversationId, customerEmail, 
             n8nHeaders['Authorization'] = `Basic ${basicAuth}`;
         }
 
-        console.log(`Background: Calling n8n webhook at ${cleanN8nUrl}...`);
+        console.log(`Background: Calling KosyAI webhook at ${cleanN8nUrl}...`);
         const n8nResponse = await fetch(cleanN8nUrl, {
             method: 'POST',
             headers: n8nHeaders,
             body: JSON.stringify(webhookPayload)
         });
 
-        console.log(`Background: n8n webhook responded with status ${n8nResponse.status}`);
+        console.log(`Background: KosyAI webhook responded with status ${n8nResponse.status}`);
         console.log(`Background: Response headers:`, n8nResponse.headers.raw());
 
         if (!n8nResponse.ok) {
             const errorText = await n8nResponse.text();
-            throw new Error(`n8n webhook error: ${n8nResponse.status} - ${errorText}`);
+            throw new Error(`KosyAI webhook error: ${n8nResponse.status} - ${errorText}`);
         }
 
         // Get the response text first to debug issues
         const responseText = await n8nResponse.text();
         console.log(`Background: Response text length: ${responseText.length} chars`);
-        console.log(`Background: n8n response text (first 500 chars): ${responseText.substring(0, 500)}`);
+        console.log(`Background: KosyAI response text (first 500 chars): ${responseText.substring(0, 500)}`);
 
         // Check if response is empty
         if (!responseText || responseText.trim() === '') {
-            throw new Error('n8n webhook returned empty response');
+            throw new Error('KosyAI webhook returned empty response');
         }
 
         // Try to parse JSON
@@ -72,12 +72,12 @@ async function processN8nWebhook(webhookPayload, conversationId, customerEmail, 
         try {
             aiRecommendations = JSON.parse(responseText);
         } catch (parseError) {
-            throw new Error(`n8n webhook returned invalid JSON: ${parseError.message}. Response: ${responseText.substring(0, 200)}`);
+            throw new Error(`KosyAI webhook returned invalid JSON: ${parseError.message}. Response: ${responseText.substring(0, 200)}`);
         }
         console.log(`Background: Received AI recommendations for conversation ${conversationId}`);
 
-        // Transform n8n response to expected format
-        // n8n returns array with content blocks, we need to extract text and format as recommended_replies
+        // Transform KosyAI response to expected format
+        // KosyAI returns array with content blocks, we need to extract text and format as recommended_replies
         if (Array.isArray(aiRecommendations)) {
             console.log(`Background: Transforming Claude API response format...`);
             // Extract text from content blocks
