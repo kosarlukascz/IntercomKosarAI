@@ -41,18 +41,24 @@ async function processN8nWebhook(webhookPayload, conversationId, customerEmail, 
             n8nHeaders['Authorization'] = `Basic ${basicAuth}`;
         }
 
+        console.log(`Background: Calling n8n webhook at ${cleanN8nUrl}...`);
         const n8nResponse = await fetch(cleanN8nUrl, {
             method: 'POST',
             headers: n8nHeaders,
             body: JSON.stringify(webhookPayload)
         });
 
+        console.log(`Background: n8n webhook responded with status ${n8nResponse.status}`);
+        console.log(`Background: Response headers:`, n8nResponse.headers.raw());
+
         if (!n8nResponse.ok) {
-            throw new Error(`n8n webhook error: ${n8nResponse.status} - ${await n8nResponse.text()}`);
+            const errorText = await n8nResponse.text();
+            throw new Error(`n8n webhook error: ${n8nResponse.status} - ${errorText}`);
         }
 
         // Get the response text first to debug issues
         const responseText = await n8nResponse.text();
+        console.log(`Background: Response text length: ${responseText.length} chars`);
         console.log(`Background: n8n response text (first 500 chars): ${responseText.substring(0, 500)}`);
 
         // Check if response is empty
