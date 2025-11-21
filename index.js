@@ -120,7 +120,7 @@ app.post('/initialize', async (req, res) => {
     }
 
     // Extract conversation ID and email
-    const conversationId = req.body.context?.conversation_id;
+    const conversationId = req.body.context?.conversation_id || req.body.conversation?.id;
     const customerEmail = extractEmail(req.body);
     const agentEmail = req.body.admin?.email;
     const workspaceId = req.body.workspace_id;
