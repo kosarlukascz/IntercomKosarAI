@@ -369,7 +369,7 @@ app.post('/initialize', async (req, res) => {
                         },
                         {
                             type: "text",
-                            text: `📧 Customer: **${customerEmail}**\n📊 Messages: **${messages.length}**`
+                            text: `📧 Customer: *${customerEmail}*\n📊 Messages: *${messages.length}*`
                         },
                         {
                             type: "spacer",
@@ -430,7 +430,7 @@ function buildRecommendedRepliesCanvas(aiRecommendations, customerEmail, message
 
     components.push({
         type: "text",
-        text: `Generated for **${customerEmail || 'customer'}** based on ${messageCount} message${messageCount !== 1 ? 's' : ''} in the conversation.`
+        text: `Generated for *${customerEmail || 'customer'}* based on ${messageCount} message${messageCount !== 1 ? 's' : ''} in the conversation.`
     });
 
     components.push({
@@ -689,7 +689,7 @@ app.post('/submit', async (req, res) => {
                         },
                         {
                             type: "text",
-                            text: "⏳ **Still processing...**\n\nAI is analyzing the conversation. Please wait a moment and click 'Check Status' again."
+                            text: "⏳ *Still processing...*\n\nKosyAI is analyzing the conversation. Please wait a moment and click 'Check Status' again."
                         },
                         {
                             type: "divider"
