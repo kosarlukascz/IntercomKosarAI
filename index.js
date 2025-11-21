@@ -15,6 +15,66 @@ const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL;
 
 app.use(express.json());
 
+// In-memory cache for AI recommendations
+const aiCache = new Map();
+
+// Background processing function for n8n webhook
+async function processN8nWebhook(webhookPayload, conversationId, customerEmail, messageCount) {
+    try {
+        console.log(`Background: Processing n8n webhook for conversation ${conversationId}...`);
+
+        // Parse n8n webhook URL to extract credentials
+        const n8nUrl = new URL(N8N_WEBHOOK_URL);
+        const n8nUsername = n8nUrl.username || '';
+        const n8nPassword = n8nUrl.password || '';
+
+        // Remove credentials from URL
+        const cleanN8nUrl = `${n8nUrl.protocol}//${n8nUrl.host}${n8nUrl.pathname}${n8nUrl.search}`;
+
+        // Prepare headers with Basic Auth if credentials exist
+        const n8nHeaders = {
+            'Content-Type': 'application/json'
+        };
+
+        if (n8nUsername && n8nPassword) {
+            const basicAuth = Buffer.from(`${n8nUsername}:${n8nPassword}`).toString('base64');
+            n8nHeaders['Authorization'] = `Basic ${basicAuth}`;
+        }
+
+        const n8nResponse = await fetch(cleanN8nUrl, {
+            method: 'POST',
+            headers: n8nHeaders,
+            body: JSON.stringify(webhookPayload)
+        });
+
+        if (!n8nResponse.ok) {
+            throw new Error(`n8n webhook error: ${n8nResponse.status} - ${await n8nResponse.text()}`);
+        }
+
+        const aiRecommendations = await n8nResponse.json();
+        console.log(`Background: Received AI recommendations for conversation ${conversationId}`);
+
+        // Store in cache with 5 minute expiry
+        aiCache.set(conversationId, {
+            data: aiRecommendations,
+            customerEmail,
+            messageCount,
+            timestamp: Date.now(),
+            expiresAt: Date.now() + (5 * 60 * 1000) // 5 minutes
+        });
+
+        console.log(`Background: Cached recommendations for conversation ${conversationId}`);
+    } catch (error) {
+        console.error(`Background: Error processing conversation ${conversationId}:`, error);
+        // Store error in cache
+        aiCache.set(conversationId, {
+            error: error.message,
+            timestamp: Date.now(),
+            expiresAt: Date.now() + (5 * 60 * 1000)
+        });
+    }
+}
+
 // Helper function to safely extract email from various possible locations in the request body
 function extractEmail(body) {
     return body?.contact?.email ||
@@ -219,45 +279,51 @@ app.post('/initialize', async (req, res) => {
             }
         };
 
-        // 4. Send to n8n webhook
-        console.log('Sending data to n8n webhook...');
+        // 4. Return immediate loading response, then process in background
+        console.log('Returning loading state and processing in background...');
 
-        // Parse n8n webhook URL to extract credentials
-        const n8nUrl = new URL(N8N_WEBHOOK_URL);
-        const n8nUsername = n8nUrl.username || '';
-        const n8nPassword = n8nUrl.password || '';
-
-        // Remove credentials from URL
-        const cleanN8nUrl = `${n8nUrl.protocol}//${n8nUrl.host}${n8nUrl.pathname}${n8nUrl.search}`;
-
-        // Prepare headers with Basic Auth if credentials exist
-        const n8nHeaders = {
-            'Content-Type': 'application/json'
-        };
-
-        if (n8nUsername && n8nPassword) {
-            const basicAuth = Buffer.from(`${n8nUsername}:${n8nPassword}`).toString('base64');
-            n8nHeaders['Authorization'] = `Basic ${basicAuth}`;
-        }
-
-        const n8nResponse = await fetch(cleanN8nUrl, {
-            method: 'POST',
-            headers: n8nHeaders,
-            body: JSON.stringify(webhookPayload),
-            timeout: 9000 // 9 second timeout (Intercom has 10s limit)
+        // Send immediate loading response (under 10s timeout)
+        res.json({
+            canvas: {
+                content: {
+                    components: [
+                        {
+                            type: "text",
+                            text: "# 🤖 AI Reply Assistant"
+                        },
+                        {
+                            type: "text",
+                            text: "⏳ **Generating AI recommendations...**\n\nAnalyzing conversation and preparing suggested replies. This may take a few moments."
+                        },
+                        {
+                            type: "divider"
+                        },
+                        {
+                            type: "text",
+                            text: `📧 Customer: **${customerEmail}**\n📊 Messages: **${messages.length}**`
+                        },
+                        {
+                            type: "spacer",
+                            size: "s"
+                        },
+                        {
+                            type: "button",
+                            id: "refresh_now",
+                            label: "🔄 Check Status",
+                            style: "primary",
+                            action: {
+                                type: "submit"
+                            }
+                        }
+                    ]
+                }
+            }
         });
 
-        if (!n8nResponse.ok) {
-            throw new Error(`n8n webhook error: ${n8nResponse.status} - ${await n8nResponse.text()}`);
-        }
-
-        const aiRecommendations = await n8nResponse.json();
-        console.log('Received AI recommendations from n8n');
-
-        // 5. Build Canvas response with AI recommendations
-        const canvasResponse = buildRecommendedRepliesCanvas(aiRecommendations, customerEmail, messages.length);
-
-        res.json(canvasResponse);
+        // Process n8n webhook in background (async, don't await)
+        processN8nWebhook(webhookPayload, conversationId, customerEmail, messages.length).catch(err => {
+            console.error('Background n8n processing error:', err);
+        });
 
     } catch (error) {
         console.error('Error in initialize endpoint:', error);
@@ -427,6 +493,8 @@ app.post('/submit', async (req, res) => {
 
     const componentId = req.body.component_id;
     const inputValues = req.body.input_values || {};
+    const conversationId = req.body.conversation?.id || req.body.context?.conversation_id;
+    const customerEmail = extractEmail(req.body);
 
     // Handle "Use This Reply" button click
     if (componentId && componentId.startsWith('use_reply_')) {
@@ -484,11 +552,8 @@ app.post('/submit', async (req, res) => {
         }
     }
 
-    // Handle "Generate New Suggestions" or "Try Again" button
-    if (componentId === 'refresh_replies' || componentId === 'back_to_suggestions') {
-        // Re-run the initialize logic
-        const conversationId = req.body.context?.conversation_id;
-
+    // Handle "Check Status" or "Generate New Suggestions" button
+    if (componentId === 'refresh_now' || componentId === 'refresh_replies' || componentId === 'back_to_suggestions') {
         if (!conversationId) {
             return res.json({
                 canvas: {
@@ -504,14 +569,70 @@ app.post('/submit', async (req, res) => {
             });
         }
 
-        // Redirect to initialize logic by triggering a refresh
+        // Check cache for AI recommendations
+        const cached = aiCache.get(conversationId);
+
+        if (cached && cached.expiresAt > Date.now()) {
+            // Check if error
+            if (cached.error) {
+                return res.json({
+                    canvas: {
+                        content: {
+                            components: [
+                                {
+                                    type: "text",
+                                    text: `❌ **Error**\n\nFailed to generate AI recommendations: ${cached.error}`
+                                },
+                                {
+                                    type: "divider"
+                                },
+                                {
+                                    type: "button",
+                                    id: "refresh_now",
+                                    label: "🔄 Try Again",
+                                    style: "primary",
+                                    action: {
+                                        type: "submit"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                });
+            }
+
+            // AI recommendations are ready!
+            if (cached.data) {
+                console.log(`Cache hit: Returning AI recommendations for conversation ${conversationId}`);
+                const canvasResponse = buildRecommendedRepliesCanvas(cached.data, cached.customerEmail, cached.messageCount);
+                return res.json(canvasResponse);
+            }
+        }
+
+        // Still processing or cache expired
         return res.json({
             canvas: {
                 content: {
                     components: [
                         {
                             type: "text",
-                            text: "🔄 **Refreshing...**\n\nGenerating new AI suggestions. This may take a few seconds."
+                            text: "# 🤖 AI Reply Assistant"
+                        },
+                        {
+                            type: "text",
+                            text: "⏳ **Still processing...**\n\nAI is analyzing the conversation. Please wait a moment and click 'Check Status' again."
+                        },
+                        {
+                            type: "divider"
+                        },
+                        {
+                            type: "button",
+                            id: "refresh_now",
+                            label: "🔄 Check Status",
+                            style: "primary",
+                            action: {
+                                type: "submit"
+                            }
                         }
                     ]
                 }
