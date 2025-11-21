@@ -221,11 +221,28 @@ app.post('/initialize', async (req, res) => {
 
         // 4. Send to n8n webhook
         console.log('Sending data to n8n webhook...');
-        const n8nResponse = await fetch(N8N_WEBHOOK_URL, {
+
+        // Parse n8n webhook URL to extract credentials
+        const n8nUrl = new URL(N8N_WEBHOOK_URL);
+        const n8nUsername = n8nUrl.username || '';
+        const n8nPassword = n8nUrl.password || '';
+
+        // Remove credentials from URL
+        const cleanN8nUrl = `${n8nUrl.protocol}//${n8nUrl.host}${n8nUrl.pathname}${n8nUrl.search}`;
+
+        // Prepare headers with Basic Auth if credentials exist
+        const n8nHeaders = {
+            'Content-Type': 'application/json'
+        };
+
+        if (n8nUsername && n8nPassword) {
+            const basicAuth = Buffer.from(`${n8nUsername}:${n8nPassword}`).toString('base64');
+            n8nHeaders['Authorization'] = `Basic ${basicAuth}`;
+        }
+
+        const n8nResponse = await fetch(cleanN8nUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: n8nHeaders,
             body: JSON.stringify(webhookPayload),
             timeout: 9000 // 9 second timeout (Intercom has 10s limit)
         });
