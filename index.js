@@ -13,7 +13,8 @@ const INTERCOM_ACCESS_TOKEN = process.env.INTERCOM_ACCESS_TOKEN;
 const INTERCOM_CLIENT_SECRET = process.env.INTERCOM_CLIENT_SECRET;
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL;
 
-app.use(express.json());
+// Increase body size limit to handle large conversation payloads
+app.use(express.json({ limit: '10mb' }));
 
 // In-memory cache for AI recommendations
 const aiCache = new Map();
