@@ -552,7 +552,7 @@ function buildRecommendedRepliesCanvas(aiRecommendations, customerEmail, message
         // No recommendations available
         components.push({
             type: "text",
-            text: "⚠️ No AI recommendations were generated.\n\nThis might be due to insufficient conversation data or an issue with the AI service."
+            text: "⚠️ No KosyAI recommendations were generated.\n\nThis might be due to insufficient conversation data or an issue with the AI service."
         });
 
         components.push({
@@ -597,7 +597,7 @@ app.post('/submit', async (req, res) => {
                         components: [
                             {
                                 type: "text",
-                                text: "## ✅ Reply Ready"
+                                text: "# ✅ Reply Ready"
                             },
                             {
                                 type: "text",
@@ -669,7 +669,7 @@ app.post('/submit', async (req, res) => {
                             components: [
                                 {
                                     type: "text",
-                                    text: `❌ **Error**\n\nFailed to generate AI recommendations: ${cached.error}`
+                                    text: `❌ *Error*\n\nFailed to generate AI recommendations: ${cached.error}`
                                 },
                                 {
                                     type: "divider"
@@ -735,7 +735,7 @@ app.post('/submit', async (req, res) => {
                 components: [
                     {
                         type: "text",
-                        text: "✅ **Action Completed**\n\nYour request has been processed successfully."
+                        text: "✅ *Action Completed*\n\nYour request has been processed successfully."
                     }
                 ]
             }
