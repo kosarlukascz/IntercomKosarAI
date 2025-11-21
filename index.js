@@ -82,6 +82,7 @@ async function processN8nWebhook(webhookPayload, conversationId, customerEmail, 
             // Extract text from content blocks
             const replies = [];
             aiRecommendations.forEach((item, index) => {
+                // Handle nested format: [{"content": [{"type":"text","text":"..."}]}]
                 if (item.content && Array.isArray(item.content)) {
                     item.content.forEach(contentBlock => {
                         if (contentBlock.type === 'text' && contentBlock.text) {
@@ -92,6 +93,15 @@ async function processN8nWebhook(webhookPayload, conversationId, customerEmail, 
                                 tone: 'professional'
                             });
                         }
+                    });
+                }
+                // Handle flat format: [{"type":"text","text":"..."}]
+                else if (item.type === 'text' && item.text) {
+                    replies.push({
+                        id: `reply-${index}`,
+                        text: item.text,
+                        confidence: 0.95,
+                        tone: 'professional'
                     });
                 }
             });
