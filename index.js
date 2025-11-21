@@ -408,6 +408,13 @@ app.post('/initialize', async (req, res) => {
             }
         });
 
+        // Mark processing start time in cache
+        aiCache.set(conversationId, {
+            startedAt: Date.now(),
+            customerEmail,
+            messageCount: messages.length
+        });
+
         // Process n8n webhook in background (async, don't await)
         processN8nWebhook(webhookPayload, conversationId, customerEmail, messages.length).catch(err => {
             console.error('Background n8n processing error:', err);
@@ -698,6 +705,21 @@ app.post('/submit', async (req, res) => {
         }
 
         // Still processing or cache expired
+        // Determine progress message based on elapsed time
+        let progressMessage = "⏳ *Still processing...*\n\nKosyAI is analyzing the conversation. Please wait a moment and click 'Check Status' again.";
+
+        if (cached && cached.startedAt) {
+            const elapsedSeconds = Math.floor((Date.now() - cached.startedAt) / 1000);
+
+            if (elapsedSeconds < 15) {
+                progressMessage = `⏳ *Processing... (${elapsedSeconds}s elapsed)*\n\nKosyAI is analyzing the conversation.\n\n*Estimated time: ~15 seconds*\n\nPlease wait before checking status.`;
+            } else if (elapsedSeconds < 30) {
+                progressMessage = "⏳ *Almost done... (15s+)*\n\nKosyAI is finalizing the analysis. Click 'Check Status' to see if it's ready.";
+            } else {
+                progressMessage = `⏳ *Taking longer than usual... (${elapsedSeconds}s)*\n\nThis is taking more time than expected. Please check status or try generating new suggestions.`;
+            }
+        }
+
         return res.json({
             canvas: {
                 content: {
@@ -708,7 +730,7 @@ app.post('/submit', async (req, res) => {
                         },
                         {
                             type: "text",
-                            text: "⏳ *Still processing...*\n\nKosyAI is analyzing the conversation. Please wait a moment and click 'Check Status' again."
+                            text: progressMessage
                         },
                         {
                             type: "divider"
