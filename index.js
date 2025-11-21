@@ -51,8 +51,39 @@ async function processN8nWebhook(webhookPayload, conversationId, customerEmail, 
             throw new Error(`n8n webhook error: ${n8nResponse.status} - ${await n8nResponse.text()}`);
         }
 
-        const aiRecommendations = await n8nResponse.json();
+        let aiRecommendations = await n8nResponse.json();
         console.log(`Background: Received AI recommendations for conversation ${conversationId}`);
+
+        // Transform n8n response to expected format
+        // n8n returns array with content blocks, we need to extract text and format as recommended_replies
+        if (Array.isArray(aiRecommendations) && aiRecommendations[0]?.content) {
+            // Extract text from content blocks
+            const replies = [];
+            aiRecommendations.forEach((item, index) => {
+                if (item.content && Array.isArray(item.content)) {
+                    item.content.forEach(contentBlock => {
+                        if (contentBlock.type === 'text' && contentBlock.text) {
+                            replies.push({
+                                id: `reply-${index}`,
+                                text: contentBlock.text,
+                                confidence: 0.95,
+                                tone: 'professional'
+                            });
+                        }
+                    });
+                }
+            });
+
+            // Format as expected structure
+            aiRecommendations = {
+                recommended_replies: replies,
+                context_analysis: {
+                    sentiment: 'positive',
+                    urgency: 'medium',
+                    category: 'support'
+                }
+            };
+        }
 
         // Store in cache with 5 minute expiry
         aiCache.set(conversationId, {
