@@ -1,0 +1,24 @@
+{
+  "name": "intercom-kosar-ai",
+  "version": "1.0.0",
+  "description": "Intercom Canvas Integration for AI service",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": [
+    "intercom",
+    "canvas",
+    "express",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-fetch": "^3.3.2",
+    "dotenv": "^16.3.1"
+  }
+}
